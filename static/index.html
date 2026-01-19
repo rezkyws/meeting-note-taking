@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Meeting Note Taker</title>
+    <style>
+        :root {
+            --bg-primary: #0a0f0a;
+            --bg-secondary: #0d1a0d;
+            --bg-card: #101810;
+            --text-primary: #e0ffe0;
+            --text-secondary: #80b080;
+            --accent: #00ff41;
+            --accent-dim: #00cc33;
+            --accent-glow: rgba(0, 255, 65, 0.25);
+            --success: #00ff41;
+            --danger: #ff3333;
+            --border: #1a3a1a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent-glow), 0 0 40px var(--accent-glow);
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: transparent;
+            color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .btn-danger {
+            border-color: var(--danger);
+            background: transparent;
+            color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: var(--bg-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .status-bar {
+            text-align: center;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-secondary);
+        }
+
+        .panel-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .panel-content {
+            padding: 20px;
+            height: 450px;
+            overflow-y: auto;
+        }
+
+        .transcript-line {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: var(--bg-secondary);
+            border-radius: 2px;
+            border-left: 3px solid var(--accent);
+            animation: fadeIn 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .transcript-time {
+            font-size: 0.75rem;
+            color: var(--accent-dim);
+            margin-bottom: 5px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+            stroke: var(--accent-dim);
+        }
+
+        .notes-section {
+            margin-bottom: 20px;
+        }
+
+        .notes-section h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .notes-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .notes-section li {
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border-radius: 2px;
+            margin-bottom: 6px;
+            border-left: 2px solid var(--accent-dim);
+        }
+
+        .action-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .action-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        .summary-text {
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        /* Scrollbar styling */
+        .panel-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .panel-content::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .panel-content::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-dim);
+        }
+
+        /* Download buttons */
+        .download-section {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn-download {
+            padding: 12px 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: 1px solid var(--accent-dim);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: transparent;
+            color: var(--accent-dim);
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            background: var(--accent-dim);
+            color: var(--bg-primary);
+        }
+
+        .btn-download:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 AI Meeting Note Taker</h1>
+            <p class="subtitle">Capture your meetings and generate smart notes automatically</p>
+        </header>
+
+        <div class="controls">
+            <button id="startBtn" class="btn btn-primary" onclick="startRecording()">
+                🎙️ Start Recording
+            </button>
+            <button id="stopBtn" class="btn btn-danger" onclick="stopRecording()" disabled>
+                ⏹️ Stop Recording
+            </button>
+        </div>
+
+        <div id="statusBar" class="status-bar" style="display: none;">
+            <div class="recording-dot"></div>
+            <span id="statusText">Recording...</span>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <span>📜</span>
+                    <h2>Live Transcript</h2>
+                </div>
+                <div class="panel-content" id="transcriptPanel">
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        <p>Click "Start Recording" to begin</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span>📋</span>
+                    <h2>Meeting Notes</h2>
+                </div>
+                <div class="panel-content" id="notesPanel">
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>Notes will be generated when you stop recording</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="download-section" id="downloadSection" style="display: none;">
+            <button class="btn-download" onclick="downloadTranscript()">
+                📄 Download Transcript
+            </button>
+            <button class="btn-download" onclick="downloadNotes()">
+                📋 Download Notes
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isRecording = false;
+        let transcriptStarted = false;
+        let fullTranscript = [];
+        let currentNotes = null;
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected, reconnecting...');
+                setTimeout(connectWebSocket, 2000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'init':
+                    isRecording = data.is_recording;
+                    updateUI();
+                    if (data.transcript && data.transcript.length > 0) {
+                        transcriptStarted = true;
+                        const panel = document.getElementById('transcriptPanel');
+                        panel.innerHTML = '';
+                        data.transcript.forEach(line => {
+                            addTranscriptLine(line);
+                        });
+                    }
+                    break;
+
+                case 'transcript':
+                    if (!transcriptStarted) {
+                        document.getElementById('transcriptPanel').innerHTML = '';
+                        transcriptStarted = true;
+                    }
+                    const line = `[${data.timestamp.toFixed(1)}s] ${data.text}`;
+                    fullTranscript.push(line);
+                    addTranscriptLine(line);
+                    break;
+
+                case 'status':
+                    document.getElementById('statusText').textContent = data.message;
+                    break;
+
+                case 'notes':
+                    currentNotes = data;
+                    displayNotes(data);
+                    document.getElementById('downloadSection').style.display = 'flex';
+                    break;
+
+                case 'error':
+                    alert('Error: ' + data.message);
+                    break;
+            }
+        }
+
+        function addTranscriptLine(text) {
+            const panel = document.getElementById('transcriptPanel');
+            const line = document.createElement('div');
+            line.className = 'transcript-line';
+            line.textContent = text;
+            panel.appendChild(line);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        function displayNotes(notes) {
+            const panel = document.getElementById('notesPanel');
+            panel.innerHTML = '';
+
+            if (notes.summary) {
+                panel.innerHTML += `
+                    <div class="notes-section">
+                        <h3>📝 Summary</h3>
+                        <p class="summary-text">${notes.summary}</p>
+                    </div>
+                `;
+            }
+
+            if (notes.key_points && notes.key_points.length > 0) {
+                panel.innerHTML += `
+                    <div class="notes-section">
+                        <h3>💡 Key Points</h3>
+                        <ul>${notes.key_points.map(p => `<li>${p}</li>`).join('')}</ul>
+                    </div>
+                `;
+            }
+
+            if (notes.action_items && notes.action_items.length > 0) {
+                panel.innerHTML += `
+                    <div class="notes-section">
+                        <h3>✅ Action Items</h3>
+                        <ul>${notes.action_items.map(item => `
+                            <li class="action-item">
+                                <input type="checkbox" />
+                                <span>${item}</span>
+                            </li>
+                        `).join('')}</ul>
+                    </div>
+                `;
+            }
+
+            if (notes.decisions && notes.decisions.length > 0) {
+                panel.innerHTML += `
+                    <div class="notes-section">
+                        <h3>⚖️ Decisions</h3>
+                        <ul>${notes.decisions.map(d => `<li>${d}</li>`).join('')}</ul>
+                    </div>
+                `;
+            }
+
+            if (notes.questions && notes.questions.length > 0) {
+                panel.innerHTML += `
+                    <div class="notes-section">
+                        <h3>❓ Open Questions</h3>
+                        <ul>${notes.questions.map(q => `<li>${q}</li>`).join('')}</ul>
+                    </div>
+                `;
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('startBtn').disabled = isRecording;
+            document.getElementById('stopBtn').disabled = !isRecording;
+            document.getElementById('statusBar').style.display = isRecording ? 'flex' : 'none';
+        }
+
+        async function startRecording() {
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.status === 'started') {
+                    isRecording = true;
+                    transcriptStarted = false;
+                    fullTranscript = [];
+                    currentNotes = null;
+                    document.getElementById('downloadSection').style.display = 'none';
+                    document.getElementById('transcriptPanel').innerHTML = `
+                        <div class="empty-state">
+                            <p>Listening for audio...</p>
+                        </div>
+                    `;
+                    document.getElementById('notesPanel').innerHTML = `
+                        <div class="empty-state">
+                            <p>Notes will be generated when you stop recording</p>
+                        </div>
+                    `;
+                    updateUI();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to start recording: ' + error);
+            }
+        }
+
+        async function stopRecording() {
+            try {
+                document.getElementById('statusText').textContent = 'Stopping...';
+                const response = await fetch('/api/stop', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.status === 'stopped') {
+                    isRecording = false;
+                    updateUI();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to stop recording: ' + error);
+            }
+        }
+
+        function downloadTranscript() {
+            if (fullTranscript.length === 0) {
+                alert('No transcript available');
+                return;
+            }
+            const content = fullTranscript.join('\n');
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transcript_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadNotes() {
+            if (!currentNotes) {
+                alert('No notes available');
+                return;
+            }
+            let content = '# Meeting Notes\n\n';
+            if (currentNotes.summary) {
+                content += `## Summary\n${currentNotes.summary}\n\n`;
+            }
+            if (currentNotes.key_points && currentNotes.key_points.length > 0) {
+                content += `## Key Points\n${currentNotes.key_points.map(p => `- ${p}`).join('\n')}\n\n`;
+            }
+            if (currentNotes.action_items && currentNotes.action_items.length > 0) {
+                content += `## Action Items\n${currentNotes.action_items.map(a => `- [ ] ${a}`).join('\n')}\n\n`;
+            }
+            if (currentNotes.decisions && currentNotes.decisions.length > 0) {
+                content += `## Decisions\n${currentNotes.decisions.map(d => `- ${d}`).join('\n')}\n\n`;
+            }
+            if (currentNotes.questions && currentNotes.questions.length > 0) {
+                content += `## Open Questions\n${currentNotes.questions.map(q => `- ${q}`).join('\n')}\n\n`;
+            }
+            const blob = new Blob([content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `notes_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize
+        connectWebSocket();
+    </script>
+</body>
+
+</html>
