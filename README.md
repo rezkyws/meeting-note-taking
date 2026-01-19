@@ -39,9 +39,19 @@ An AI-powered system that captures system audio during meetings, transcribes it 
 
 3. Click **Start Recording** and join your meeting
 
-4. Click **Stop Recording** when done to generate final notes
+4. **Live notes update automatically** every ~30 seconds during recording - no need to wait until the end!
 
-5. Download transcript and notes using the export buttons
+5. Click **Stop Recording** when done to generate comprehensive final notes
+
+6. Download transcript and notes using the export buttons
+
+## Features
+
+- **Real-time transcription** - See what's being said as it happens
+- **Live incremental notes** - AI-generated notes update every 30 seconds during the meeting
+- **Non-blocking architecture** - Note generation runs asynchronously, never interrupting transcription
+- **Final summary** - Comprehensive notes generated when recording stops
+- **Export options** - Download transcript (.txt) and notes (.md)
 
 ## Project Structure
 

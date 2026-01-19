@@ -390,7 +390,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <p>Notes will be generated when you stop recording</p>
+                        <p>Notes will update live during recording</p>
                     </div>
                 </div>
             </div>
@@ -467,8 +467,13 @@
 
                 case 'notes':
                     currentNotes = data;
-                    displayNotes(data);
+                    displayNotes(data, false);
                     document.getElementById('downloadSection').style.display = 'flex';
+                    break;
+
+                case 'incremental_notes':
+                    currentNotes = data;
+                    displayNotes(data, true);
                     break;
 
                 case 'error':
@@ -486,9 +491,19 @@
             panel.scrollTop = panel.scrollHeight;
         }
 
-        function displayNotes(notes) {
+        function displayNotes(notes, isIncremental = false) {
             const panel = document.getElementById('notesPanel');
             panel.innerHTML = '';
+
+            // Show incremental badge if live update
+            if (isIncremental) {
+                panel.innerHTML += `
+                    <div style="background: var(--accent-glow); padding: 8px 12px; border-radius: 4px; margin-bottom: 15px; font-size: 0.8rem; color: var(--accent); display: flex; align-items: center; gap: 8px;">
+                        <div class="recording-dot" style="width: 8px; height: 8px;"></div>
+                        Live notes - updating every 30s
+                    </div>
+                `;
+            }
 
             if (notes.summary) {
                 panel.innerHTML += `
@@ -565,7 +580,7 @@
                     `;
                     document.getElementById('notesPanel').innerHTML = `
                         <div class="empty-state">
-                            <p>Notes will be generated when you stop recording</p>
+                            <p>Notes will update live during recording</p>
                         </div>
                     `;
                     updateUI();
