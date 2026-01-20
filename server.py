@@ -60,7 +60,7 @@ def get_recorder() -> SystemAudioRecorder:
 def get_transcriber() -> WhisperTranscriber:
     if state.transcriber is None:
         # Use 'tiny' for fastest transcription, 'base' for better accuracy
-        state.transcriber = WhisperTranscriber(model_size="base")
+        state.transcriber = WhisperTranscriber(model_size="large-v3")
     return state.transcriber
 
 

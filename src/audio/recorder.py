@@ -103,79 +103,126 @@ class SystemAudioRecorder:
             self._record_thread.join(timeout=2.0)
             self._record_thread = None
 
+    def _find_best_loopback_mic(self):
+        """Find the best loopback microphone based on current default speaker."""
+        loopback_mics = sc.all_microphones(include_loopback=True)
+        
+        # Get current default speaker
+        try:
+            current_default = sc.default_speaker()
+            speaker_name = current_default.name.lower() if current_default else ""
+        except Exception:
+            speaker_name = self._speaker.name.lower() if self._speaker else ""
+        
+        # Loopback mics are named "Monitor of <speaker_name>"
+        # So we need to find the one that contains the full speaker name
+        mic = None
+        best_match_score = 0
+        
+        for m in loopback_mics:
+            if not m.isloopback:
+                continue
+                
+            mic_name = m.name.lower()
+            
+            # Calculate match score based on how much of the speaker name matches
+            if speaker_name:
+                # Check if the full speaker name is in the mic name
+                if speaker_name in mic_name:
+                    # Full match - best possible score
+                    return m
+                
+                # Partial match - count matching words
+                speaker_words = speaker_name.split()
+                match_score = sum(1 for word in speaker_words if word in mic_name)
+                
+                if match_score > best_match_score:
+                    best_match_score = match_score
+                    mic = m
+            elif mic is None:
+                mic = m  # Fallback to first loopback if no speaker name
+        
+        return mic
+    
     def _recording_loop(
         self,
         on_chunk_ready: Optional[Callable[[np.ndarray, str], None]] = None,
     ) -> None:
-        """Main recording loop running in a separate thread."""
+        """Main recording loop running in a separate thread.
+        
+        Handles device switching by detecting when the default speaker changes
+        and reconnecting to the appropriate loopback device.
+        """
         chunk_samples = int(self.sample_rate * self.chunk_duration)
         chunk_index = 0
+        consecutive_silent_chunks = 0
+        MAX_SILENT_BEFORE_RECHECK = 3  # Recheck device after this many silent chunks
 
-        try:
-            # Find a loopback microphone
-            # On Linux, loopback mics are monitors of output devices
-            loopback_mics = sc.all_microphones(include_loopback=True)
-            
-            # Try to find a loopback mic matching our speaker
-            mic = None
-            speaker_name = self._speaker.name.lower() if self._speaker else ""
-            
-            for m in loopback_mics:
-                # Loopback mics often have "monitor" in name or match speaker name
-                mic_name = m.name.lower()
-                if m.isloopback:
-                    # Prefer one matching our speaker
-                    if speaker_name and speaker_name.split()[0] in mic_name:
-                        mic = m
-                        break
-                    elif mic is None:
-                        mic = m  # Fallback to first loopback
-            
-            if mic is None:
-                raise ValueError(
-                    "No loopback microphone found. "
-                    "On Linux, ensure PulseAudio/PipeWire is running. "
-                    f"Available mics: {[m.name for m in loopback_mics]}"
-                )
+        while self._is_recording:
+            try:
+                # Find the best loopback microphone for current default speaker
+                mic = self._find_best_loopback_mic()
+                
+                if mic is None:
+                    loopback_mics = sc.all_microphones(include_loopback=True)
+                    raise ValueError(
+                        "No loopback microphone found. "
+                        "On Linux, ensure PulseAudio/PipeWire is running. "
+                        f"Available mics: {[m.name for m in loopback_mics]}"
+                    )
 
-            print(f"Using loopback device: {mic.name}")
+                print(f"Using loopback device: {mic.name}")
+                current_mic_name = mic.name
 
-            with mic.recorder(samplerate=self.sample_rate, channels=1) as recorder:
-                while self._is_recording:
-                    # Record chunk
-                    audio_data = recorder.record(numframes=chunk_samples)
+                with mic.recorder(samplerate=self.sample_rate, channels=1) as recorder:
+                    while self._is_recording:
+                        # Record chunk
+                        audio_data = recorder.record(numframes=chunk_samples)
 
-                    # Convert to mono if stereo
-                    if len(audio_data.shape) > 1 and audio_data.shape[1] > 1:
-                        audio_data = np.mean(audio_data, axis=1)
-                    else:
-                        audio_data = audio_data.flatten()
+                        # Convert to mono if stereo
+                        if len(audio_data.shape) > 1 and audio_data.shape[1] > 1:
+                            audio_data = np.mean(audio_data, axis=1)
+                        else:
+                            audio_data = audio_data.flatten()
 
-                    # Skip silent chunks (basic VAD) - lowered threshold
-                    max_amplitude = np.max(np.abs(audio_data))
-                    if max_amplitude < 0.005:
-                        # print(f"Skipping silent chunk (max amp: {max_amplitude:.4f})")
-                        continue
+                        # Check for silent chunks
+                        max_amplitude = np.max(np.abs(audio_data))
+                        if max_amplitude < 0.005:
+                            consecutive_silent_chunks += 1
+                            
+                            # After several silent chunks, check if default speaker changed
+                            if consecutive_silent_chunks >= MAX_SILENT_BEFORE_RECHECK:
+                                new_mic = self._find_best_loopback_mic()
+                                if new_mic and new_mic.name != current_mic_name:
+                                    print(f"Device change detected. Switching from '{current_mic_name}' to '{new_mic.name}'")
+                                    consecutive_silent_chunks = 0
+                                    break  # Exit inner loop to reconnect with new device
+                            continue
 
-                    # print(f"Recording chunk {chunk_index} (max amp: {max_amplitude:.4f})")
+                        # Reset silence counter on valid audio
+                        consecutive_silent_chunks = 0
 
-                    # Save chunk
-                    timestamp = int(time.time() * 1000)
-                    filename = f"chunk_{chunk_index:04d}_{timestamp}.wav"
-                    filepath = self.output_dir / filename
+                        # Save chunk
+                        timestamp = int(time.time() * 1000)
+                        filename = f"chunk_{chunk_index:04d}_{timestamp}.wav"
+                        filepath = self.output_dir / filename
 
-                    sf.write(str(filepath), audio_data, self.sample_rate)
+                        sf.write(str(filepath), audio_data, self.sample_rate)
 
-                    # Add to queue and call callback
-                    self._audio_queue.put((audio_data, str(filepath)))
-                    if on_chunk_ready:
-                        on_chunk_ready(audio_data, str(filepath))
+                        # Add to queue and call callback
+                        self._audio_queue.put((audio_data, str(filepath)))
+                        if on_chunk_ready:
+                            on_chunk_ready(audio_data, str(filepath))
 
-                    chunk_index += 1
+                        chunk_index += 1
 
-        except Exception as e:
-            print(f"Recording error: {e}")
-            self._is_recording = False
+            except Exception as e:
+                print(f"Recording error: {e}")
+                if not self._is_recording:
+                    break
+                # Wait a bit before trying to reconnect
+                print("Attempting to reconnect to audio device...")
+                time.sleep(1.0)
 
     def get_next_chunk(self, timeout: float = 1.0) -> Optional[tuple[np.ndarray, str]]:
         """
