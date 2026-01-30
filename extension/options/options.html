@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Noter - Settings</title>
+    <style>
+        :root {
+            --bg-primary: #0a0f0a;
+            --bg-secondary: #0d1a0d;
+            --bg-card: #101810;
+            --text-primary: #e0ffe0;
+            --text-secondary: #80b080;
+            --accent: #00ff41;
+            --accent-dim: #00cc33;
+            --accent-glow: rgba(0, 255, 65, 0.25);
+            --success: #00ff41;
+            --danger: #ff3333;
+            --border: #1a3a1a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: var(--accent);
+            text-shadow: 0 0 15px var(--accent-glow);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            color: var(--accent);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: transparent;
+            color: var(--accent);
+        }
+
+        .btn:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .status.success {
+            display: block;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .status.error {
+            display: block;
+            background: rgba(255, 51, 51, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .info-box {
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--accent);
+            padding: 16px;
+            margin-top: 24px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .info-box code {
+            background: var(--bg-primary);
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>⚙️ Settings</h1>
+            <p class="subtitle">Configure your AI Meeting Note Taker</p>
+        </header>
+
+        <div class="card">
+            <h2>🔑 API Configuration</h2>
+
+            <div class="form-group">
+                <label for="apiUrl">API Server URL</label>
+                <input type="text" id="apiUrl" placeholder="http://localhost:8001">
+                <p class="hint">The URL of your AI Noter API server</p>
+            </div>
+
+            <div class="form-group">
+                <label for="apiKey">API Key</label>
+                <input type="password" id="apiKey" placeholder="Your API key">
+                <p class="hint">Your API key for authentication</p>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn" id="saveBtn">💾 Save Settings</button>
+                <button class="btn" id="testBtn">🔗 Test Connection</button>
+            </div>
+
+            <div id="status" class="status"></div>
+        </div>
+
+        <div class="info-box">
+            <strong>Getting Started:</strong><br><br>
+            1. Start the API server: <code>python api_server.py</code><br>
+            2. Use the demo key: <code>ai-noter-demo-key-2024</code><br>
+            3. Click "Test Connection" to verify setup
+        </div>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+
+</html>

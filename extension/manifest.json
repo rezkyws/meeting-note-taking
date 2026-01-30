@@ -1,0 +1,39 @@
+{
+    "manifest_version": 3,
+    "name": "AI Meeting Note Taker",
+    "version": "1.0.0",
+    "description": "Capture browser audio during meetings and generate AI-powered notes automatically",
+    "permissions": [
+        "tabCapture",
+        "offscreen",
+        "storage",
+        "activeTab"
+    ],
+    "host_permissions": [
+        "http://localhost:*/*",
+        "https://*.googleapis.com/*"
+    ],
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_icon": "icons/icon128.svg",
+        "default_title": "AI Meeting Note Taker"
+    },
+    "icons": {
+        "128": "icons/icon128.svg"
+    },
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "options_page": "options/options.html",
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "offscreen.html"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
